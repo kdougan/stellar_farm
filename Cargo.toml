@@ -1,0 +1,11 @@
+[package]
+name = "stellar_farm"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+glm = "0.2.3"
+hecs = "0.10.3"
+raylib = "3.7.0"
