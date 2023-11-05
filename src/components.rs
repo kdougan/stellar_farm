@@ -1,9 +1,11 @@
+use glam::Vec2;
 use raylib::prelude::Color;
 
 pub struct Transform {
-    pub position: glm::Vec2,
-    pub size: glm::Vec2,
+    pub position: Vec2,
+    pub size: Vec2,
     pub scale: f32,
+    pub rotation: f32,
 }
 
 pub struct Drawable {
@@ -11,13 +13,15 @@ pub struct Drawable {
 }
 
 pub struct Physics {
-    pub velocity: glm::Vec2,
-    pub acceleration: glm::Vec2,
+    pub velocity: Vec2,
+    pub acceleration: Vec2,
     pub mass: f32,
 }
 
 pub struct MoveTo {
-    pub position: glm::Vec2,
+    pub position: Vec2,
 }
 
 pub struct Selected {}
+
+pub struct Selectable {}

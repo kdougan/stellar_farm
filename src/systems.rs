@@ -1,15 +1,40 @@
 use crate::components::*;
+use glam::vec2;
 use hecs::World;
 use raylib::{
     consts::MouseButton::MOUSE_LEFT_BUTTON,
+    consts::MouseButton::MOUSE_RIGHT_BUTTON,
     prelude::{Color, RaylibDraw},
     RaylibHandle, RaylibThread,
 };
 
 pub fn render_system(world: &World, rl: &mut RaylibHandle, thread: &RaylibThread) {
     let mut d = rl.begin_drawing(&thread);
-    d.clear_background(Color::BLACK);
+    d.clear_background(Color::new(30, 20, 30, 255));
 
+    for (_, (transform, moveto)) in &mut world.query::<(&Transform, &MoveTo)>() {
+        d.draw_line(
+            transform.position.x as i32,
+            transform.position.y as i32,
+            moveto.position.x as i32,
+            moveto.position.y as i32,
+            Color::SKYBLUE,
+        );
+        d.draw_circle_lines(
+            moveto.position.x as i32,
+            moveto.position.y as i32,
+            8.0,
+            Color::SKYBLUE,
+        );
+    }
+    for (_, (transform, _)) in &mut world.query::<(&Transform, &Selected)>() {
+        d.draw_circle_lines(
+            transform.position.x as i32,
+            transform.position.y as i32,
+            (transform.size.x * 0.5 + 4.0) * transform.scale,
+            Color::GREEN,
+        );
+    }
     for (_, (transform, drawable)) in &mut world.query::<(&Transform, &Drawable)>() {
         d.draw_circle(
             transform.position.x as i32,
@@ -20,41 +45,39 @@ pub fn render_system(world: &World, rl: &mut RaylibHandle, thread: &RaylibThread
     }
 }
 
-pub fn keyboard_input_system(world: &mut World, rl: &mut RaylibHandle) {
-    for (_, (physics,)) in &mut world.query::<(&mut Physics,)>() {
-        physics.velocity.x = 0.0;
-        physics.velocity.y = 0.0;
-
-        if rl.is_key_down(raylib::consts::KeyboardKey::KEY_W) {
-            physics.velocity.y -= 100.0;
-        }
-        if rl.is_key_down(raylib::consts::KeyboardKey::KEY_S) {
-            physics.velocity.y += 100.0;
-        }
-        if rl.is_key_down(raylib::consts::KeyboardKey::KEY_A) {
-            physics.velocity.x -= 100.0;
-        }
-        if rl.is_key_down(raylib::consts::KeyboardKey::KEY_D) {
-            physics.velocity.x += 100.0;
-        }
-    }
-}
-
-pub fn mouse_input_system(world: &mut World, rl: &mut RaylibHandle) {
+pub fn input_system(world: &mut World, rl: &mut RaylibHandle) {
+    let mpos = rl.get_mouse_position();
+    let mpos_vec = vec2(mpos.x as f32, mpos.y as f32);
     if rl.is_mouse_button_pressed(MOUSE_LEFT_BUTTON) {
-        let vec = rl.get_mouse_position();
+        // Deselect all
         let ids: Vec<_> = world
             .query::<(&Selected,)>()
             .iter()
             .map(|(id, _)| id)
             .collect();
         for id in ids {
-            let _ = world.insert_one(
-                id,
-                MoveTo {
-                    position: glm::vec2(vec.x as f32, vec.y as f32),
-                },
-            );
+            let _ = world.remove_one::<Selected>(id);
+        }
+        // Select new
+        let ids: Vec<_> = world
+            .query::<(&Transform, &Selectable)>()
+            .iter()
+            .filter(|(_, (transform, _))| {
+                transform.position.distance(mpos_vec) <= (transform.size.x * 0.5) * transform.scale
+            })
+            .map(|(id, _)| id)
+            .collect();
+        for id in ids {
+            let _ = world.insert_one(id, Selected {});
+        }
+    } else if rl.is_mouse_button_pressed(MOUSE_RIGHT_BUTTON) {
+        let ids: Vec<_> = world
+            .query::<(&Transform, &Physics, &Selected)>()
+            .iter()
+            .map(|(id, _)| id)
+            .collect();
+        for id in ids {
+            let _ = world.insert_one(id, MoveTo { position: mpos_vec });
         }
     }
 }
@@ -65,14 +88,13 @@ pub fn move_to_system(world: &mut World) {
         .query::<(&mut MoveTo, &mut Physics, &Transform)>()
         .iter()
     {
-        let dx = moveto.position.x - transform.position.x;
-        let dy = moveto.position.y - transform.position.y;
-        let distance = (dx * dx + dy * dy).sqrt();
-        if distance > 1.0 {
-            physics.velocity.y += (dy / distance) * 100.0;
-            physics.velocity.x += (dx / distance) * 100.0;
-        } else {
+        let vector = moveto.position - transform.position;
+        let distance_squared = vector.length_squared();
+        if moveto.position.distance(transform.position) <= 4.0 {
             to_remove.push(id);
+        } else {
+            let direction = vector / distance_squared.sqrt();
+            physics.acceleration = direction * (1000.0 / physics.mass);
         }
     }
     for id in to_remove {
@@ -80,27 +102,16 @@ pub fn move_to_system(world: &mut World) {
     }
 }
 
-pub fn physics_system(world: &mut World, rl: &mut RaylibHandle) {
+pub fn physics_system(world: &mut World, rl: &RaylibHandle) {
     let dt = rl.get_frame_time();
-
-    for (_, (transform, physics)) in world.query::<(&mut Transform, &Physics)>().iter() {
-        transform.position.x += physics.velocity.x * dt;
-        transform.position.y += physics.velocity.y * dt;
-
-        let width = rl.get_screen_width() as f32;
-        let height = rl.get_screen_height() as f32;
-
-        if transform.position.x < 0.0 {
-            transform.position.x = width;
-        }
-        if transform.position.x > width {
-            transform.position.x = 0.0;
-        }
-        if transform.position.y < 0.0 {
-            transform.position.y = height;
-        }
-        if transform.position.y > height {
-            transform.position.y = 0.0;
-        }
+    let screen_width = rl.get_screen_width() as f32;
+    let screen_height = rl.get_screen_height() as f32;
+    for (_, (transform, physics)) in world.query::<(&mut Transform, &mut Physics)>().iter() {
+        physics.velocity += physics.acceleration * dt;
+        transform.position += physics.velocity * dt;
+        physics.acceleration = vec2(0.0, 0.0);
+        physics.velocity *= 0.8;
+        transform.position.x = (transform.position.x + screen_width) % screen_width;
+        transform.position.y = (transform.position.y + screen_height) % screen_height;
     }
 }
