@@ -2,8 +2,6 @@ use glam::Vec2;
 use hecs::Entity;
 use std::collections::HashMap;
 
-const GRID_SIZE: f32 = 100.0;
-
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct GridCell {
     x: i32,
@@ -32,7 +30,7 @@ impl SpatialGrid {
         self.cells.entry(cell).or_insert_with(Vec::new).push(entity);
     }
 
-    pub fn get_cell_for_position(&self, position: &Vec2) -> GridCell {
+    fn get_cell_for_position(&self, position: &Vec2) -> GridCell {
         GridCell {
             x: (position.x / self.grid_size).floor() as i32,
             y: (position.y / self.grid_size).floor() as i32,

@@ -36,3 +36,10 @@ pub enum BuildingType {
     Wall,
     WatchTower,
 }
+
+#[derive(Clone, Debug)]
+pub enum ActionType {
+    Move,
+    Attack,
+    EnableBuildMode,
+}

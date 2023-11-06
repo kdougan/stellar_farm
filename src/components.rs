@@ -1,7 +1,8 @@
 use glam::Vec2;
-use raylib::prelude::Color;
+use hecs::Entity;
+use raylib::prelude::{Color, Rectangle};
 
-use crate::types::BuildingType;
+use crate::types::{ActionType, BuildingType};
 
 pub struct Transform {
     pub position: Vec2,
@@ -45,4 +46,19 @@ pub struct Building {
 pub struct Health {
     pub health: f32,
     pub max_health: f32,
+}
+
+pub struct UiElement {
+    pub bounds: Rectangle,
+    pub visible: bool,
+}
+
+pub struct Button {
+    pub text: String,
+    pub action: ActionType,
+}
+
+pub struct UiState {
+    pub hovered_entity: Option<Entity>,
+    pub clicked_entity: Option<Entity>,
 }

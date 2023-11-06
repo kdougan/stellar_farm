@@ -1,17 +1,12 @@
-use crate::{components::*, grid::SpatialGrid};
+use crate::{actions::ActionQueue, components::*, grid::SpatialGrid, types::ActionType};
 use glam::{vec2, Vec2};
 use hecs::{Entity, World};
 use raylib::{
-    consts::KeyboardKey::KEY_B,
-    consts::KeyboardKey::KEY_SPACE,
-    consts::MouseButton::MOUSE_LEFT_BUTTON,
-    consts::MouseButton::MOUSE_RIGHT_BUTTON,
-    prelude::{Color, RaylibDraw},
-    RaylibHandle, RaylibThread,
+    prelude::{Color, KeyboardKey, MouseButton, RaylibDraw, RaylibDrawHandle},
+    RaylibHandle,
 };
 
-pub fn render_system(world: &World, rl: &mut RaylibHandle, thread: &RaylibThread) {
-    let mut d = rl.begin_drawing(&thread);
+pub fn render_system(world: &World, d: &mut RaylibDrawHandle) {
     d.clear_background(Color::new(30, 20, 30, 255));
 
     for (_, (transform, moveto, _)) in &mut world.query::<(&Transform, &MoveTo, &Selected)>() {
@@ -47,10 +42,27 @@ pub fn render_system(world: &World, rl: &mut RaylibHandle, thread: &RaylibThread
     }
 }
 
+pub fn render_ui_system(world: &World, d: &mut RaylibDrawHandle) {
+    for (_, (ui_element, button)) in world.query::<(&UiElement, &Button)>().iter() {
+        if ui_element.visible {
+            // Draw button
+            d.draw_rectangle_rec(ui_element.bounds, Color::GRAY.fade(0.5));
+            d.draw_text(
+                &button.text,
+                ui_element.bounds.x as i32
+                    + (ui_element.bounds.width / 2.0 - button.text.len() as f32 * 4.0) as i32,
+                ui_element.bounds.y as i32 + (ui_element.bounds.height / 2.0 - 10.0) as i32,
+                20,
+                Color::WHITE,
+            );
+        }
+    }
+}
+
 pub fn input_system(world: &mut World, rl: &mut RaylibHandle) {
     let mpos = rl.get_mouse_position();
     let mpos_vec = vec2(mpos.x, mpos.y);
-    if rl.is_mouse_button_pressed(MOUSE_LEFT_BUTTON) {
+    if rl.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
         // Deselect all
         let entities: Vec<_> = world
             .query::<(&Selected,)>()
@@ -72,7 +84,7 @@ pub fn input_system(world: &mut World, rl: &mut RaylibHandle) {
         for ent in entities {
             let _ = world.insert_one(ent, Selected {});
         }
-    } else if rl.is_mouse_button_pressed(MOUSE_RIGHT_BUTTON) {
+    } else if rl.is_mouse_button_pressed(MouseButton::MOUSE_RIGHT_BUTTON) {
         let entities: Vec<_> = world
             .query::<(&Transform, &Physics, &Selected)>()
             .iter()
@@ -83,7 +95,7 @@ pub fn input_system(world: &mut World, rl: &mut RaylibHandle) {
         }
     }
 
-    if rl.is_key_pressed(KEY_SPACE) {
+    if rl.is_key_pressed(KeyboardKey::KEY_SPACE) {
         world.spawn((
             Transform {
                 position: mpos_vec,
@@ -104,7 +116,7 @@ pub fn input_system(world: &mut World, rl: &mut RaylibHandle) {
             Selectable {},
         ));
     }
-    if rl.is_key_pressed(KEY_B) {
+    if rl.is_key_pressed(KeyboardKey::KEY_B) {
         world.spawn((
             Transform {
                 position: mpos_vec,
@@ -123,6 +135,33 @@ pub fn input_system(world: &mut World, rl: &mut RaylibHandle) {
                 immovable: true,
             },
         ));
+    }
+}
+
+pub fn input_ui_system(world: &mut World, rl: &mut RaylibHandle, action_queue: &mut ActionQueue) {
+    let mouse_position = rl.get_mouse_position();
+
+    for (_, (ui_element, button)) in world.query::<(&UiElement, &Button)>().iter() {
+        if ui_element.visible && ui_element.bounds.check_collision_point_rec(mouse_position) {
+            if rl.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
+                // Enqueue a ClickButton action
+                action_queue.enqueue(button.action.clone());
+            }
+        }
+    }
+}
+
+pub fn action_processing_system(_: &mut World, action_queue: &mut ActionQueue) {
+    for action in action_queue.drain() {
+        println!("Action: {:?}", action);
+        // match action {
+        //     ActionType::ClickButton(entity) => {
+        //         if let Some(mut button) = world.get_mut::<Button>(entity).ok() {
+        //             // Execute the button's action
+        //             (button.action)();
+        //         }
+        //     } // Handle other action types here
+        // }
     }
 }
 
