@@ -1,6 +1,5 @@
 use glam::Vec2;
-use hecs::Entity;
-use raylib::prelude::{Color, Rectangle};
+use raylib::prelude::Color;
 
 use crate::types::{ActionType, BuildingType};
 
@@ -49,16 +48,17 @@ pub struct Health {
 }
 
 pub struct UiElement {
-    pub bounds: Rectangle,
     pub visible: bool,
 }
 
 pub struct Button {
-    pub text: String,
-    pub action: ActionType,
+    pub click_action: Option<ActionType>,
+    pub hover_action: Option<ActionType>,
 }
 
-pub struct UiState {
-    pub hovered_entity: Option<Entity>,
-    pub clicked_entity: Option<Entity>,
+pub struct TextButton {
+    pub text: String,
+    pub font_size: f32,
+    pub color: Color,
+    pub bg_color: Color,
 }

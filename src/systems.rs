@@ -1,8 +1,8 @@
-use crate::{actions::ActionQueue, components::*, grid::SpatialGrid, types::ActionType};
+use crate::{actions::ActionQueue, components::*, grid::SpatialGrid};
 use glam::{vec2, Vec2};
 use hecs::{Entity, World};
 use raylib::{
-    prelude::{Color, KeyboardKey, MouseButton, RaylibDraw, RaylibDrawHandle},
+    prelude::{Color, KeyboardKey, MouseButton, RaylibDraw, RaylibDrawHandle, Rectangle},
     RaylibHandle,
 };
 
@@ -43,17 +43,28 @@ pub fn render_system(world: &World, d: &mut RaylibDrawHandle) {
 }
 
 pub fn render_ui_system(world: &World, d: &mut RaylibDrawHandle) {
-    for (_, (ui_element, button)) in world.query::<(&UiElement, &Button)>().iter() {
+    for (_, (ui_element, button, transform)) in world
+        .query::<(&UiElement, &TextButton, &Transform)>()
+        .iter()
+    {
         if ui_element.visible {
+            let bounds = Rectangle::new(
+                transform.position.x - transform.size.x / 2.0,
+                transform.position.y - transform.size.y / 2.0,
+                transform.size.x,
+                transform.size.y,
+            );
             // Draw button
-            d.draw_rectangle_rec(ui_element.bounds, Color::GRAY.fade(0.5));
+            d.draw_rectangle_rec(bounds, button.bg_color);
+            let text_size =
+                raylib::core::text::measure_text(button.text.as_str(), button.font_size as i32);
+            let text_vec = vec2(text_size as f32, button.font_size as f32);
             d.draw_text(
                 &button.text,
-                ui_element.bounds.x as i32
-                    + (ui_element.bounds.width / 2.0 - button.text.len() as f32 * 4.0) as i32,
-                ui_element.bounds.y as i32 + (ui_element.bounds.height / 2.0 - 10.0) as i32,
-                20,
-                Color::WHITE,
+                bounds.x as i32 + (bounds.width / 2.0 - text_vec.x / 2.0) as i32,
+                bounds.y as i32 + (bounds.height / 2.0 - text_vec.y / 2.0) as i32,
+                button.font_size as i32,
+                button.color,
             );
         }
     }
@@ -114,6 +125,10 @@ pub fn input_system(world: &mut World, rl: &mut RaylibHandle) {
                 immovable: false,
             },
             Selectable {},
+            Health {
+                health: 100.0,
+                max_health: 100.0,
+            },
         ));
     }
     if rl.is_key_pressed(KeyboardKey::KEY_B) {
@@ -134,18 +149,28 @@ pub fn input_system(world: &mut World, rl: &mut RaylibHandle) {
                 radius: 8.0,
                 immovable: true,
             },
+            Health {
+                health: 500.0,
+                max_health: 500.0,
+            },
         ));
     }
 }
 
 pub fn input_ui_system(world: &mut World, rl: &mut RaylibHandle, action_queue: &mut ActionQueue) {
-    let mouse_position = rl.get_mouse_position();
+    let mouse_position = vec2(rl.get_mouse_position().x, rl.get_mouse_position().y);
 
-    for (_, (ui_element, button)) in world.query::<(&UiElement, &Button)>().iter() {
-        if ui_element.visible && ui_element.bounds.check_collision_point_rec(mouse_position) {
+    for (_, (ui_element, button, transform)) in
+        world.query::<(&UiElement, &Button, &Transform)>().iter()
+    {
+        if ui_element.visible && crate::util::transform_contains_point(transform, mouse_position) {
+            if let Some(action) = button.hover_action.clone() {
+                action_queue.enqueue(action);
+            }
             if rl.is_mouse_button_pressed(MouseButton::MOUSE_LEFT_BUTTON) {
-                // Enqueue a ClickButton action
-                action_queue.enqueue(button.action.clone());
+                if let Some(action) = button.click_action.clone() {
+                    action_queue.enqueue(action);
+                }
             }
         }
     }

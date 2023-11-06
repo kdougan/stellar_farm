@@ -21,6 +21,8 @@ fn main() {
     let mut spatial_grid = SpatialGrid::new(64.0);
     let mut action_queue = ActionQueue::new();
 
+    init(&mut world);
+
     while !rl.window_should_close() {
         systems::input_ui_system(&mut world, &mut rl, &mut action_queue);
         systems::input_system(&mut world, &mut rl);
@@ -35,4 +37,27 @@ fn main() {
         systems::render_system(&world, &mut d);
         systems::render_ui_system(&world, &mut d);
     }
+}
+
+fn init(world: &mut World) {
+    // create a button
+    world.spawn((
+        components::Transform {
+            position: glam::Vec2::new(60.0, 30.0),
+            size: glam::Vec2::new(100.0, 50.0),
+            scale: 1.0,
+            rotation: 0.0,
+        },
+        components::UiElement { visible: true },
+        components::TextButton {
+            text: "Button".to_string(),
+            font_size: 20.0,
+            color: raylib::prelude::Color::RAYWHITE,
+            bg_color: raylib::prelude::Color::BLACK,
+        },
+        components::Button {
+            click_action: Some(types::ActionType::EnableBuildMode),
+            hover_action: None,
+        },
+    ));
 }

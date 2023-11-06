@@ -12,14 +12,6 @@ impl ActionQueue {
         self.queue.push(action);
     }
 
-    pub fn dequeue(&mut self) -> Option<ActionType> {
-        self.queue.pop()
-    }
-
-    pub fn clear_queue(&mut self) {
-        self.queue.clear();
-    }
-
     pub fn drain(&mut self) -> std::vec::Drain<ActionType> {
         self.queue.drain(..)
     }
