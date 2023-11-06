@@ -1,11 +1,9 @@
-use components::*;
-use glam::vec2;
 use hecs::World;
-use raylib::prelude::Color;
 
 mod components;
 mod grid;
 mod systems;
+mod types;
 mod util;
 
 fn main() {
@@ -17,28 +15,15 @@ fn main() {
     rl.set_target_fps(60);
 
     let mut world = World::new();
-
-    world.spawn((
-        Transform {
-            position: vec2(100.0, 100.0),
-            size: vec2(16.0, 16.0),
-            scale: 1.0,
-            rotation: 0.0,
-        },
-        Drawable { color: Color::RED },
-        Physics {
-            velocity: vec2(0.0, 0.0),
-            acceleration: vec2(0.0, 0.0),
-            mass: 1.0,
-        },
-        Selected {},
-        Selectable {},
-    ));
+    let mut spatial_grid = grid::SpatialGrid::new(64.0);
 
     while !rl.window_should_close() {
         systems::input_system(&mut world, &mut rl);
         systems::move_to_system(&mut world);
         systems::physics_system(&mut world, &mut rl);
+        systems::spatial_grid_system(&mut world, &mut spatial_grid);
+        systems::separate_entities_system(&mut world, &mut spatial_grid);
+        systems::building_progress_system(&mut world, &rl);
         systems::render_system(&world, &mut rl, &thread);
     }
 }

@@ -10,7 +10,7 @@ struct GridCell {
     y: i32,
 }
 
-struct SpatialGrid {
+pub struct SpatialGrid {
     grid_size: f32,
     cells: HashMap<GridCell, Vec<Entity>>,
 }
