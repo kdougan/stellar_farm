@@ -42,4 +42,5 @@ pub enum ActionType {
     // Move,
     // Attack,
     EnableBuildMode,
+    EnableSelectMode,
 }

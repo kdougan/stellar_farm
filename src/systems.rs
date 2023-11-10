@@ -2,7 +2,9 @@ use crate::{actions::ActionQueue, components::*, grid::SpatialGrid};
 use glam::{vec2, Vec2};
 use hecs::{Entity, World};
 use raylib::{
-    prelude::{Color, KeyboardKey, MouseButton, RaylibDraw, RaylibDrawHandle, Rectangle},
+    prelude::{
+        Color, KeyboardKey, MouseButton, MouseCursor, RaylibDraw, RaylibDrawHandle, Rectangle,
+    },
     RaylibHandle,
 };
 
@@ -43,30 +45,30 @@ pub fn render_system(world: &World, d: &mut RaylibDrawHandle) {
 }
 
 pub fn render_ui_system(world: &World, d: &mut RaylibDrawHandle) {
-    for (_, (ui_element, button, transform)) in world
+    for (_, (_, button, transform)) in world
         .query::<(&UiElement, &TextButton, &Transform)>()
         .iter()
     {
-        if ui_element.visible {
-            let bounds = Rectangle::new(
-                transform.position.x - transform.size.x / 2.0,
-                transform.position.y - transform.size.y / 2.0,
+        // Draw button
+        d.draw_rectangle_rec(
+            Rectangle::new(
+                transform.position.x,
+                transform.position.y,
                 transform.size.x,
                 transform.size.y,
-            );
-            // Draw button
-            d.draw_rectangle_rec(bounds, button.bg_color);
-            let text_size =
-                raylib::core::text::measure_text(button.text.as_str(), button.font_size as i32);
-            let text_vec = vec2(text_size as f32, button.font_size as f32);
-            d.draw_text(
-                &button.text,
-                bounds.x as i32 + (bounds.width / 2.0 - text_vec.x / 2.0) as i32,
-                bounds.y as i32 + (bounds.height / 2.0 - text_vec.y / 2.0) as i32,
-                button.font_size as i32,
-                button.color,
-            );
-        }
+            ),
+            button.bg_color,
+        );
+        let text_size =
+            raylib::core::text::measure_text(button.text.as_str(), button.font_size as i32);
+        let text_vec = vec2(text_size as f32, button.font_size as f32);
+        d.draw_text(
+            &button.text,
+            transform.position.x as i32 + (transform.size.x / 2.0 - text_vec.x / 2.0) as i32,
+            transform.position.y as i32 + (transform.size.y / 2.0 - text_vec.y / 2.0) as i32,
+            button.font_size as i32,
+            button.color,
+        );
     }
 }
 
@@ -159,11 +161,10 @@ pub fn input_system(world: &mut World, rl: &mut RaylibHandle) {
 
 pub fn input_ui_system(world: &mut World, rl: &mut RaylibHandle, action_queue: &mut ActionQueue) {
     let mouse_position = vec2(rl.get_mouse_position().x, rl.get_mouse_position().y);
-
-    for (_, (ui_element, button, transform)) in
-        world.query::<(&UiElement, &Button, &Transform)>().iter()
-    {
-        if ui_element.visible && crate::util::transform_contains_point(transform, mouse_position) {
+    rl.set_mouse_cursor(MouseCursor::MOUSE_CURSOR_DEFAULT);
+    for (_, (_, button, transform)) in world.query::<(&UiElement, &Button, &Transform)>().iter() {
+        if transform.contains_point(mouse_position) {
+            rl.set_mouse_cursor(MouseCursor::MOUSE_CURSOR_POINTING_HAND);
             if let Some(action) = button.hover_action.clone() {
                 action_queue.enqueue(action);
             }

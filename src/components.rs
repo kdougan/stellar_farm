@@ -10,6 +10,18 @@ pub struct Transform {
     pub rotation: f32,
 }
 
+impl Transform {
+    pub fn contains_point(&self, point: Vec2) -> bool {
+        let top_left = self.position;
+        let bottom_right = self.position + self.size;
+
+        point.x >= top_left.x
+            && point.x <= bottom_right.x
+            && point.y >= top_left.y
+            && point.y <= bottom_right.y
+    }
+}
+
 pub struct Drawable {
     pub color: Color,
 }
@@ -47,9 +59,7 @@ pub struct Health {
     pub max_health: f32,
 }
 
-pub struct UiElement {
-    pub visible: bool,
-}
+pub struct UiElement {}
 
 pub struct Button {
     pub click_action: Option<ActionType>,
